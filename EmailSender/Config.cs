@@ -1,17 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Configuration;
+﻿using System.Configuration;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace EmailSender
 {
-    public static class Config
+    internal static class Config
     {
-        public static bool IsShowTemplate, ExcelHasHeader;
-        public static string FileExcelPath, FileExcel, FileTemplateMsg, AttachmentPath, UserAlias, User, Password, EmailServer;
-        public static int NumOfCheckLogDate, EmailPort;
+        internal static readonly bool IsShowTemplate, ExcelHasHeader;
+        internal static readonly string FileExcelPath, FileExcel, FileTemplateMsg, AttachmentPath, UserAlias, User, Password, EmailServer;
+        internal static readonly int NumOfCheckLogDate, EmailPort;
 
         static Config()
         {

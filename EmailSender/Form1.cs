@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Configuration;
 using System.Data;
-using System.Data.OleDb;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -13,7 +11,6 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 
 using ExcelDataReader;
-using MailKit;
 using MimeKit;
 
 namespace EmailSender
@@ -245,12 +242,9 @@ namespace EmailSender
                     foreach (DataRow dr in excelDT.Rows)
                     {
                         if (token.IsCancellationRequested) token.ThrowIfCancellationRequested(); //to catch block
+                        if (CheckSentLog(dr[1].ToString(), templateDict["subject"].Replace("[BrandName]", dr[0].ToString()))) continue;
 
-                        if (CheckSentLog(dr[1].ToString(), templateDict["subject"].Replace("[BrandName]", dr[0].ToString())))
-                        {
-                            continue;
-                        }
-                        var message = BuildMessage(dr);
+                        MimeMessage message = BuildMessage(dr);
                         WriteTextBox(String.Format("Ready to send to {0}", dr[1].ToString()));
 
                         try

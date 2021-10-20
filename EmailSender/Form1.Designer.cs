@@ -179,7 +179,7 @@
             this.Controls.Add(this.lblStatus);
             this.Controls.Add(this.txtMsgBox);
             this.Name = "Form1";
-            this.Text = "Email Sender for SAUCE";
+            this.Text = "Email Sender";
             this.ResumeLayout(false);
             this.PerformLayout();
 
