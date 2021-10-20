@@ -15,20 +15,25 @@ namespace EmailSender
 
         static Config()
         {
-            NumOfCheckLogDate = ConfigurationManager.AppSettings.AllKeys.Contains("NumOfCheckLogDate") ? int.Parse(ConfigurationManager.AppSettings["NumOfCheckLogDate"]) : 7;
-            IsShowTemplate = ConfigurationManager.AppSettings.AllKeys.Contains("ShowTemplate") ? ConfigurationManager.AppSettings["ShowTemplate"] == "Y" : false;
-            FileExcelPath = ConfigurationManager.AppSettings.AllKeys.Contains("FileExcelPath") ? ConfigurationManager.AppSettings["FileExcelPath"] : "email//";
+            NumOfCheckLogDate = int.Parse(GetConfiguration(nameof(NumOfCheckLogDate), "7"));
+            IsShowTemplate = GetConfiguration(nameof(IsShowTemplate), "N") == "Y";
+            FileExcelPath = GetConfiguration(nameof(FileExcelPath), "email//");
             if (!FileExcelPath.EndsWith("//")) FileExcelPath += "//";
-            FileExcel = ConfigurationManager.AppSettings.AllKeys.Contains("FileExcel") ? ConfigurationManager.AppSettings["FileExcel"] : "templateExcel.xlsx";
-            ExcelHasHeader = ConfigurationManager.AppSettings.AllKeys.Contains("ExcelHasHeader") ? ConfigurationManager.AppSettings["ExcelHasHeader"] == "Y" : true;
-            FileTemplateMsg = ConfigurationManager.AppSettings.AllKeys.Contains("FileTemplateMsg") ? ConfigurationManager.AppSettings["FileTemplateMsg"] : "templateMsg.txt";
-            AttachmentPath = ConfigurationManager.AppSettings.AllKeys.Contains("AttachmentPath") ? ConfigurationManager.AppSettings["AttachmentPath"] : "attachment//";
+            FileExcel = GetConfiguration(nameof(FileExcel), "templateExcel.xlsx");
+            ExcelHasHeader = GetConfiguration(nameof(ExcelHasHeader), "Y") == "Y";
+            FileTemplateMsg = GetConfiguration(nameof(FileTemplateMsg), "templateMsg.txt");
+            AttachmentPath = GetConfiguration(nameof(AttachmentPath), "attachment//");
             if (!AttachmentPath.EndsWith("//")) AttachmentPath += "//";
-            UserAlias = ConfigurationManager.AppSettings.AllKeys.Contains("UserName") ? ConfigurationManager.AppSettings["UserName"] : "alias";
-            User = ConfigurationManager.AppSettings.AllKeys.Contains("EmailUser") ? ConfigurationManager.AppSettings["EmailUser"] : "";
-            Password = ConfigurationManager.AppSettings.AllKeys.Contains("EmailPW") ? ConfigurationManager.AppSettings["EmailPW"] : "";
-            EmailServer = ConfigurationManager.AppSettings.AllKeys.Contains("EmailPW") ? ConfigurationManager.AppSettings["EmailServer"] : "smtp.live.com";
-            EmailPort = ConfigurationManager.AppSettings.AllKeys.Contains("EmailPort") ? int.Parse(ConfigurationManager.AppSettings["EmailPort"]) : 587;
+            UserAlias = GetConfiguration(nameof(UserAlias), "alias");
+            User = GetConfiguration(nameof(User), "");
+            Password = GetConfiguration(nameof(Password), "");
+            EmailServer = GetConfiguration(nameof(EmailServer), "smtp.live.com");
+            EmailPort = int.Parse(GetConfiguration(nameof(EmailPort), "587"));
+        }
+
+        private static string GetConfiguration(string name, string defValue)
+        {
+            return ConfigurationManager.AppSettings.AllKeys.Contains(name) ? ConfigurationManager.AppSettings[name] : defValue;
         }
     }
 }
