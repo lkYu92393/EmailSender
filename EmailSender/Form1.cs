@@ -5,6 +5,7 @@ using System.Configuration;
 using System.Data;
 using System.Data.OleDb;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -12,7 +13,6 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 
 using ExcelDataReader;
-using System.IO;
 using MailKit;
 using MimeKit;
 
@@ -21,18 +21,15 @@ namespace EmailSender
 
     public partial class Form1 : Form
     {
-        static bool isShowTemplate, excelHasHeader;
-        static string errorMsg = "",
-                      fileExcelPath, fileExcel, fileTemplateMsg, attachmentPath, userAlias, user, password, emailServer;
-        static int numOfCheckLogDate, emailPort;
-        static CancellationTokenSource source;
-        static Dictionary<string, string> templateDict = new Dictionary<string, string>(); // field, value
+        public string ErrorMsg;
+        private CancellationTokenSource source;
+        private Dictionary<string, string> templateDict = new Dictionary<string, string>(); // field, value
         private DataTable excelDT;
 
         #region "Logging"
         //Setter
-        public void changeProgramStatus(String status) { txtStatus.Text = status; }
-        public void writeTextBox(String message)
+        public void ChangeProgramStatus(String status) { txtStatus.Text = status; }
+        public void WriteTextBox(String message)
         {
             txtMsgBox.AppendText($"{message}{Environment.NewLine}");
         }
@@ -47,74 +44,53 @@ namespace EmailSender
 
         #region constructor and initialization
 
-        static Form1()
-        {
-            numOfCheckLogDate = ConfigurationManager.AppSettings.AllKeys.Contains("numOfCheckLogDate") ? int.Parse(ConfigurationManager.AppSettings["numOfCheckLogDate"]) : 7;
-            isShowTemplate = ConfigurationManager.AppSettings.AllKeys.Contains("showTemplate") ? ConfigurationManager.AppSettings["showTemplate"] == "Y" : false;
-            fileExcelPath = ConfigurationManager.AppSettings.AllKeys.Contains("fileExcelPath") ? ConfigurationManager.AppSettings["fileExcelPath"] : "email//";
-            if (!fileExcelPath.EndsWith("//")) fileExcelPath += "//";
-            fileExcel = ConfigurationManager.AppSettings.AllKeys.Contains("fileExcel") ? ConfigurationManager.AppSettings["fileExcel"] : "templateExcel.xlsx";
-            excelHasHeader = ConfigurationManager.AppSettings.AllKeys.Contains("excelHasHeader") ? ConfigurationManager.AppSettings["excelHasHeader"] == "Y" : true;
-            fileTemplateMsg = ConfigurationManager.AppSettings.AllKeys.Contains("fileTemplateMsg") ? ConfigurationManager.AppSettings["fileTemplateMsg"] : "templateMsg.txt";
-            attachmentPath = ConfigurationManager.AppSettings.AllKeys.Contains("attachmentPath") ? ConfigurationManager.AppSettings["attachmentPath"] : "attachment//";
-            if (!attachmentPath.EndsWith("//")) attachmentPath += "//";
-            userAlias = ConfigurationManager.AppSettings.AllKeys.Contains("userName") ? ConfigurationManager.AppSettings["userName"] : "alias";
-            user = ConfigurationManager.AppSettings.AllKeys.Contains("emailUser") ? ConfigurationManager.AppSettings["emailUser"] : "";
-            password = ConfigurationManager.AppSettings.AllKeys.Contains("emailPW") ? ConfigurationManager.AppSettings["emailPW"] : "";
-            emailServer = ConfigurationManager.AppSettings.AllKeys.Contains("emailPW") ? ConfigurationManager.AppSettings["emailServer"] : "smtp.live.com";
-            emailPort = ConfigurationManager.AppSettings.AllKeys.Contains("emailPort") ? int.Parse(ConfigurationManager.AppSettings["emailPort"]) : 587;
-        }
-
         public Form1()
         {
             InitializeComponent();
 
+            ErrorMsg = "";
             Init();
         }
 
         private void Init()
         {
-            if (fileExcel.ToLower().EndsWith("xlsx"))
+            if (Config.FileExcel.ToLower().EndsWith("xlsx"))
             {
-                excelDT = readExcel(fileExcelPath + fileExcel);
+                excelDT = ReadExcel(Config.FileExcelPath + Config.FileExcel);
             }
-            else if (fileExcel.ToLower().EndsWith("csv"))
+            else if (Config.FileExcel.ToLower().EndsWith("csv"))
             {
-                excelDT = readCsv(fileExcelPath + fileExcel);
+                excelDT = ReadCsv(Config.FileExcelPath + Config.FileExcel);
             }
             ReadTemplate();
 
-            if (isShowTemplate)
-            {
-                fillForm();
-            }
+            if (Config.IsShowTemplate)
+                FillForm();
             else
-            {
-                hideForm();
-            }
+                HideForm();            
 
-            if (String.IsNullOrEmpty(errorMsg))
+            if (String.IsNullOrEmpty(ErrorMsg))
             {
-                changeProgramStatus("Ready");
+                ChangeProgramStatus("Ready");
                 txtMsgBox.Text = "Ready" + Environment.NewLine;
                 btnProcessStart.Select();
             }
             else
             {
-                changeProgramStatus("Error");
-                writeTextBox(errorMsg);
+                ChangeProgramStatus("Error");
+                WriteTextBox(ErrorMsg);
                 btnProcessStart.Enabled = false;
             }
         }
 
         // return whole excel as table, including header column
-        private DataTable readExcel(string filePath) //copy from https://github.com/ExcelDataReader/ExcelDataReader
+        private DataTable ReadExcel(string filePath) //copy from https://github.com/ExcelDataReader/ExcelDataReader
         {
             DataTable dt;
             if (!File.Exists(filePath))
             {
-                errorMsg = "Can't find excel file.";
-                writeLogFile(String.Format("{0}: Can't find email template file ({1})", DateTime.Now.ToString(), fileExcel));
+                ErrorMsg = "Can't find excel file.";
+                writeLogFile(String.Format("{0}: Can't find email template file ({1})", DateTime.Now.ToString(), Config.FileExcel));
                 return new DataTable();
             }
             using (var stream = File.Open(filePath, FileMode.Open, FileAccess.Read))
@@ -128,7 +104,7 @@ namespace EmailSender
                     dt = reader.AsDataSet().Tables[0];
                 }
             }
-            if (excelHasHeader)
+            if (Config.ExcelHasHeader)
             {
                 for (int j = 0; j < dt.Columns.Count; j++)
                 {
@@ -150,13 +126,13 @@ namespace EmailSender
         }
 
         // return whole excel as table, including header column
-        private DataTable readCsv(string filePath)
+        private DataTable ReadCsv(string filePath)
         {
             DataTable dt = new DataTable();
             if (!File.Exists(filePath))
             {
-                errorMsg = "Can't find file.";
-                writeLogFile(String.Format("{0}: Can't find email template file ({1})", DateTime.Now.ToString(), fileExcel));
+                ErrorMsg = "Can't find file.";
+                writeLogFile(String.Format("{0}: Can't find email template file ({1})", DateTime.Now.ToString(), Config.FileExcel));
                 return dt;
             }
             string[] lines = File.ReadAllLines(filePath);
@@ -171,7 +147,7 @@ namespace EmailSender
                     dr[j] = cols[j];
                 }
             }
-            if (excelHasHeader)
+            if (Config.ExcelHasHeader)
             {
                 for (int i = 0; i < dt.Columns.Count; i++)
                 {
@@ -185,13 +161,13 @@ namespace EmailSender
         // read txt file and get data according to given format. Hard code. Prone to error.
         private bool ReadTemplate()
         {
-            if (!File.Exists(fileTemplateMsg))
+            if (!File.Exists(Config.FileTemplateMsg))
             {
-                errorMsg += "Template File not found.";
-                writeLogFile(String.Format("{0}: Can't find email template file ({1})", DateTime.Now.ToString(), fileTemplateMsg));
+                ErrorMsg += "Template File not found.";
+                writeLogFile(String.Format("{0}: Can't find email template file ({1})", DateTime.Now.ToString(), Config.FileTemplateMsg));
                 return false;
             }
-            string[] templateLines = File.ReadAllLines(fileTemplateMsg);
+            string[] templateLines = File.ReadAllLines(Config.FileTemplateMsg);
             int count = 0;
             StringBuilder msgBuilder = new StringBuilder();
             foreach (string line in templateLines)
@@ -215,7 +191,7 @@ namespace EmailSender
             return true;
         }
 
-        private void fillForm()
+        private void FillForm()
         {
             if (templateDict.ContainsKey("bcc"))
             {
@@ -225,7 +201,7 @@ namespace EmailSender
             txtEmailBody.Text = templateDict["body"].Replace("<br>",Environment.NewLine);
         }
 
-        private void hideForm()
+        private void HideForm()
         {
             lblBcc.Visible = false;
             lblSubject.Visible = false;
@@ -244,13 +220,13 @@ namespace EmailSender
 
         //connect to email server, loop through target and send, disconnect after sending all, enable to button, write to status
         //cancellation check before each email
-        private async Task sendEmailTask(CancellationToken token)
+        private async Task SendEmailTask(CancellationToken token)
         {
             bool isTimeout = false;
             using (var client = new MailKit.Net.Smtp.SmtpClient())
             {
-                changeProgramStatus("Connecting to mail server...");
-                Task taskConnect = connectionToSmtp(client);
+                ChangeProgramStatus("Connecting to mail server...");
+                Task taskConnect = ConnectionToSmtp(client);
                 for (int i = 0; i < 150; i++)
                 {
                     if (taskConnect.Status == TaskStatus.RanToCompletion) break;
@@ -258,7 +234,7 @@ namespace EmailSender
                 }                
 
                 if (taskConnect.Status == TaskStatus.RanToCompletion)
-                    changeProgramStatus("Connected.");
+                    ChangeProgramStatus("Connected.");
                 else
                 {
                     isTimeout = true;
@@ -270,12 +246,12 @@ namespace EmailSender
                     {
                         if (token.IsCancellationRequested) token.ThrowIfCancellationRequested(); //to catch block
 
-                        if (checkSentLog(dr[1].ToString(), templateDict["subject"].Replace("[BrandName]", dr[0].ToString())))
+                        if (CheckSentLog(dr[1].ToString(), templateDict["subject"].Replace("[BrandName]", dr[0].ToString())))
                         {
                             continue;
                         }
                         var message = BuildMessage(dr);
-                        writeTextBox(String.Format("Ready to send to {0}", dr[1].ToString()));
+                        WriteTextBox(String.Format("Ready to send to {0}", dr[1].ToString()));
 
                         try
                         {
@@ -291,24 +267,24 @@ namespace EmailSender
                 catch (OperationCanceledException)
                 {
                     if (!isTimeout)
-                        writeTextBox("Cancelled by user." + Environment.NewLine);
+                        WriteTextBox("Cancelled by user." + Environment.NewLine);
                 }
                 client.Disconnect(true);
             }
 
             if (isTimeout)
             {
-                changeProgramStatus("Connection Timeout");
+                ChangeProgramStatus("Connection Timeout");
             }
             else if (source.IsCancellationRequested)
             {
-                changeProgramStatus("Cancelled");
+                ChangeProgramStatus("Cancelled");
                 btnProcessStart.Enabled = true;
             }
             else
             {
-                changeProgramStatus("Completed");
-                File.Move(fileExcelPath + fileExcel, fileExcelPath + fileExcel.Replace(".xlsx", String.Format("_OK_{0}.xlsx", DateTime.Now.ToString("yyyyMMdd_HHmmss"))));
+                ChangeProgramStatus("Completed");
+                File.Move(Config.FileExcelPath + Config.FileExcel, Config.FileExcelPath + Config.FileExcel.Replace(".xlsx", String.Format("_OK_{0}.xlsx", DateTime.Now.ToString("yyyyMMdd_HHmmss"))));
             }
 
             btnProcessStop.Enabled = false;
@@ -316,16 +292,16 @@ namespace EmailSender
             source.Dispose();
         }
 
-        private async Task connectionToSmtp(MailKit.Net.Smtp.SmtpClient client)
+        private async Task ConnectionToSmtp(MailKit.Net.Smtp.SmtpClient client)
         {
-            client.Connect(emailServer, 587, false);
-            client.Authenticate(user, password);
+            client.Connect(Config.EmailServer, 587, false);
+            client.Authenticate(Config.User, Config.Password);
         }
 
         private MimeMessage BuildMessage(DataRow dr)
         {
             var message = new MimeMessage();
-            message.From.Add(new MailboxAddress(userAlias, user));
+            message.From.Add(new MailboxAddress(Config.UserAlias, Config.User));
             message.To.Add(new MailboxAddress(dr[0].ToString(), dr[1].ToString()));
             if (templateDict.Keys.Contains<string>("bcc"))
             {
@@ -341,7 +317,7 @@ namespace EmailSender
                 string[] attachments = dr[2].ToString().Split('|');
                 foreach (string part in attachments)
                 {
-                    builder.Attachments.Add(attachmentPath + part);
+                    builder.Attachments.Add(Config.AttachmentPath + part);
                 }
             }
             message.Body = builder.ToMessageBody();
@@ -350,9 +326,9 @@ namespace EmailSender
         }
         
         // check log of past 1 week to see if duplicated. Time can be altered in app.settings
-        private bool checkSentLog(string email, string subject)
+        private bool CheckSentLog(string email, string subject)
         {
-            for (int i = 0; i <= numOfCheckLogDate; i++)
+            for (int i = 0; i <= Config.NumOfCheckLogDate; i++)
             {
                 string filePath = Application.StartupPath + "//Log//" + "Log" + System.DateTime.Now.AddDays(-7 + i).ToString("yyyy.MM.dd") + ".txt";
                 if (File.Exists(filePath))
@@ -363,7 +339,7 @@ namespace EmailSender
                         if (line.IndexOf(email + "|" + subject) > -1)
                         {
                             writeLogFile(String.Format("{0}: Skip sending email to {1} as duplicated found in {2}", DateTime.Now.ToString(), email, System.DateTime.Now.AddDays(-7 + i).ToString("yyyy.MM.dd")));
-                            writeTextBox(String.Format("Skipped {0}", email));
+                            WriteTextBox(String.Format("Skipped {0}", email));
                             return true;
                         }
                     }
@@ -380,12 +356,12 @@ namespace EmailSender
         {
             btnProcessStart.Enabled = false;
             btnProcessStop.Enabled = true;
-            changeProgramStatus("Running...");
+            ChangeProgramStatus("Running...");
             btnProcessStop.Select();
 
             source = new CancellationTokenSource();
             CancellationToken token = source.Token;
-            sendEmailTask(token);
+            SendEmailTask(token);
         }
 
         private void btnProcessStop_Click(object sender, EventArgs e)
