@@ -6,13 +6,13 @@ namespace EmailSender
     internal static class Config
     {
         internal static readonly bool IsShowTemplate, ExcelHasHeader;
-        internal static readonly string FileExcelPath, FileExcel, FileTemplateMsg, AttachmentPath, UserAlias, User, Password, EmailServer;
+        internal static readonly string FileExcelPath, FileExcel, FileTemplateMsg, AttachmentPath, UserAlias, EmailUser, EmailPW, EmailServer;
         internal static readonly int NumOfCheckLogDate, EmailPort;
 
         static Config()
         {
-            NumOfCheckLogDate = int.Parse(GetConfiguration(nameof(NumOfCheckLogDate), "7"));
             IsShowTemplate = GetConfiguration(nameof(IsShowTemplate), "N") == "Y";
+            NumOfCheckLogDate = int.Parse(GetConfiguration(nameof(NumOfCheckLogDate), "7"));
             FileExcelPath = GetConfiguration(nameof(FileExcelPath), "email//");
             if (!FileExcelPath.EndsWith("//")) FileExcelPath += "//";
             FileExcel = GetConfiguration(nameof(FileExcel), "templateExcel.xlsx");
@@ -21,8 +21,8 @@ namespace EmailSender
             AttachmentPath = GetConfiguration(nameof(AttachmentPath), "attachment//");
             if (!AttachmentPath.EndsWith("//")) AttachmentPath += "//";
             UserAlias = GetConfiguration(nameof(UserAlias), "alias");
-            User = GetConfiguration(nameof(User), "");
-            Password = GetConfiguration(nameof(Password), "");
+            EmailUser = GetConfiguration(nameof(EmailUser), "");
+            EmailPW = GetConfiguration(nameof(EmailPW), "");
             EmailServer = GetConfiguration(nameof(EmailServer), "smtp.live.com");
             EmailPort = int.Parse(GetConfiguration(nameof(EmailPort), "587"));
         }

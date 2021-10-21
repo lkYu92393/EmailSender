@@ -51,6 +51,7 @@ namespace EmailSender
 
         private void Init()
         {
+            ofdLoad.InitialDirectory = Directory.GetCurrentDirectory();
             if (Config.FileExcel.ToLower().EndsWith("xlsx"))
             {
                 excelDT = ReadExcel(Config.FileExcelPath + Config.FileExcel);
@@ -156,15 +157,16 @@ namespace EmailSender
         }
 
         // read txt file and get data according to given format. Hard code. Prone to error.
-        private bool ReadTemplate()
+        private bool ReadTemplate(string filePath = "")
         {
-            if (!File.Exists(Config.FileTemplateMsg))
+            if (String.IsNullOrEmpty(filePath)) filePath = Config.FileTemplateMsg;
+            if (!File.Exists(filePath))
             {
                 ErrorMsg += "Template File not found.";
-                writeLogFile(String.Format("{0}: Can't find email template file ({1})", DateTime.Now.ToString(), Config.FileTemplateMsg));
+                writeLogFile(String.Format("{0}: Can't find email template file ({1})", DateTime.Now.ToString(), filePath));
                 return false;
             }
-            string[] templateLines = File.ReadAllLines(Config.FileTemplateMsg);
+            string[] templateLines = File.ReadAllLines(filePath);
             int count = 0;
             StringBuilder msgBuilder = new StringBuilder();
             foreach (string line in templateLines)
@@ -206,6 +208,7 @@ namespace EmailSender
             txtBcc.Visible = false;
             txtSubject.Visible = false;
             txtEmailBody.Visible = false;
+            btnLoad.Visible = false;
             this.Size = new Size(txtMsgBox.Size.Width + 40, txtMsgBox.Size.Height + 115);
             txtMsgBox.Location = new Point(12, 60);
             txtMsgBox.Anchor = (AnchorStyles.Top | AnchorStyles.Right | AnchorStyles.Bottom | AnchorStyles.Left);
@@ -289,13 +292,13 @@ namespace EmailSender
         private async Task ConnectionToSmtp(MailKit.Net.Smtp.SmtpClient client)
         {
             client.Connect(Config.EmailServer, 587, false);
-            client.Authenticate(Config.User, Config.Password);
+            client.Authenticate(Config.EmailUser, Config.EmailPW);
         }
 
         private MimeMessage BuildMessage(DataRow dr)
         {
             var message = new MimeMessage();
-            message.From.Add(new MailboxAddress(Config.UserAlias, Config.User));
+            message.From.Add(new MailboxAddress(Config.UserAlias, Config.EmailUser));
             message.To.Add(new MailboxAddress(dr[0].ToString(), dr[1].ToString()));
             if (templateDict.Keys.Contains<string>("bcc"))
             {
@@ -363,8 +366,18 @@ namespace EmailSender
             if (source != null)
                 source.Cancel();
         }
+        private void btnLoad_Click(object sender, EventArgs e)
+        {
+            if (ofdLoad.ShowDialog() == DialogResult.OK)
+            {
+                string dialogPath = ofdLoad.FileName;
+                templateDict.Clear();
+                ReadTemplate(dialogPath);
+            }
+        }
 
         #endregion
+
     }
 
     //Entry Point
