@@ -225,20 +225,24 @@ namespace EmailSender
             bool isTimeout = false;
             using (var client = new MailKit.Net.Smtp.SmtpClient())
             {
-                ChangeProgramStatus("Connecting to mail server...");
-                Task taskConnect = ConnectionToSmtp(client);
-                for (int i = 0; i < 150; i++)
+                // only connect when not debugging (actual use)
+                if (!Config.IsDebug)
                 {
-                    if (taskConnect.Status == TaskStatus.RanToCompletion) break;
-                    await Task.Delay(100);
-                }                
+                    ChangeProgramStatus("Connecting to mail server...");
+                    Task taskConnect = ConnectionToSmtp(client);
+                    for (int i = 0; i < 150; i++)
+                    {
+                        if (taskConnect.Status == TaskStatus.RanToCompletion) break;
+                        await Task.Delay(100);
+                    }
 
-                if (taskConnect.Status == TaskStatus.RanToCompletion)
-                    ChangeProgramStatus("Connected.");
-                else
-                {
-                    isTimeout = true;
-                    source.Cancel();
+                    if (taskConnect.Status == TaskStatus.RanToCompletion)
+                        ChangeProgramStatus("Connected.");
+                    else
+                    {
+                        isTimeout = true;
+                        source.Cancel();
+                    }
                 }
                 try
                 {
@@ -250,14 +254,17 @@ namespace EmailSender
                         MimeMessage message = BuildMessage(dr);
                         WriteTextBox(String.Format("Ready to send to {0}", dr[1].ToString()));
 
-                        try
+                        if (!Config.IsDebug)
                         {
-                            await client.SendAsync(message);
-                            writeLogFile(String.Format("{0}: Email sent to {1}|{2}).", DateTime.Now.ToString(), dr[1].ToString(), templateDict["subject"].Replace("[BrandName]", dr[0].ToString())));
-                        }
-                        catch (Exception ex)
-                        {
-                            writeLogFile(String.Format("{0}: Error sending email to {1} ({2})", DateTime.Now.ToString(), dr[1].ToString(), ex.Message));
+                            try
+                            {
+                                await client.SendAsync(message);
+                                writeLogFile(String.Format("{0}: Email sent to {1}|{2}).", DateTime.Now.ToString(), dr[1].ToString(), templateDict["subject"].Replace("[BrandName]", dr[0].ToString())));
+                            }
+                            catch (Exception ex)
+                            {
+                                writeLogFile(String.Format("{0}: Error sending email to {1} ({2})", DateTime.Now.ToString(), dr[1].ToString(), ex.Message));
+                            } 
                         }
                     }
                 }
@@ -321,7 +328,12 @@ namespace EmailSender
 
             return message;
         }
-        
+
+        private string ReplacePart(string toBeReplaced, DataRow dr)
+        {
+            return toBeReplaced.Replace("[BrandName]", dr[0].ToString()).Replace("[ID1]", dr[3].ToString()).Replace("[ID2]", dr[4].ToString()).Replace("[ID3]", dr[5].ToString());
+        }
+
         // check log of past 1 week to see if duplicated. Time can be altered in app.settings
         private bool CheckSentLog(string email, string subject)
         {

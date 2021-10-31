@@ -5,12 +5,13 @@ namespace EmailSender
 {
     internal static class Config
     {
-        internal static readonly bool IsShowTemplate, ExcelHasHeader;
+        internal static readonly bool IsDebug, IsShowTemplate, ExcelHasHeader;
         internal static readonly string FileExcelPath, FileExcel, FileTemplateMsg, AttachmentPath, UserAlias, EmailUser, EmailPW, EmailServer;
         internal static readonly int NumOfCheckLogDate, EmailPort;
 
         static Config()
         {
+            IsDebug = GetConfiguration(nameof(IsDebug), "N") == "Y";
             IsShowTemplate = GetConfiguration(nameof(IsShowTemplate), "N") == "Y";
             NumOfCheckLogDate = int.Parse(GetConfiguration(nameof(NumOfCheckLogDate), "7"));
             FileExcelPath = GetConfiguration(nameof(FileExcelPath), "email//");
