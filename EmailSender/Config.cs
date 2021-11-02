@@ -6,7 +6,7 @@ namespace EmailSender
     internal static class Config
     {
         internal static readonly bool IsDebug, IsShowTemplate, ExcelHasHeader;
-        internal static readonly string FileExcelPath, FileExcel, FileTemplateMsg, AttachmentPath, UserAlias, EmailUser, EmailPW, EmailServer;
+        internal static readonly string FileExcelPath, FileExcel, FileTemplateMsg, AttachmentPath, EmailUserAlias, EmailUser, EmailPW, EmailServer;
         internal static readonly int NumOfCheckLogDate, EmailPort;
 
         static Config()
@@ -21,7 +21,7 @@ namespace EmailSender
             FileTemplateMsg = GetConfiguration(nameof(FileTemplateMsg), "templateMsg.txt");
             AttachmentPath = GetConfiguration(nameof(AttachmentPath), "attachment//");
             if (!AttachmentPath.EndsWith("//")) AttachmentPath += "//";
-            UserAlias = GetConfiguration(nameof(UserAlias), "alias");
+            EmailUserAlias = GetConfiguration(nameof(EmailUserAlias), "alias");
             EmailUser = GetConfiguration(nameof(EmailUser), "");
             EmailPW = GetConfiguration(nameof(EmailPW), "");
             EmailServer = GetConfiguration(nameof(EmailServer), "smtp.live.com");

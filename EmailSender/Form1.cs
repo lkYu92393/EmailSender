@@ -249,17 +249,17 @@ namespace EmailSender
                     foreach (DataRow dr in excelDT.Rows)
                     {
                         if (token.IsCancellationRequested) token.ThrowIfCancellationRequested(); //to catch block
-                        if (CheckSentLog(dr[1].ToString(), templateDict["subject"].Replace("[BrandName]", dr[0].ToString()))) continue;
+                        if (CheckSentLog(dr[1].ToString(), ReplacePart(templateDict["subject"], dr))) continue;
 
                         MimeMessage message = BuildMessage(dr);
-                        WriteTextBox(String.Format("Ready to send to {0}", dr[1].ToString()));
+                        WriteTextBox(String.Format("Ready to send to {0}", dr["Email"].ToString()));
 
                         if (!Config.IsDebug)
                         {
                             try
                             {
                                 await client.SendAsync(message);
-                                writeLogFile(String.Format("{0}: Email sent to {1}|{2}).", DateTime.Now.ToString(), dr[1].ToString(), templateDict["subject"].Replace("[BrandName]", dr[0].ToString())));
+                                writeLogFile(String.Format("{0}: Email sent to {1}|{2}).", DateTime.Now.ToString(), dr[1].ToString(), ReplacePart(templateDict["subject"], dr)));
                             }
                             catch (Exception ex)
                             {
@@ -305,7 +305,7 @@ namespace EmailSender
         private MimeMessage BuildMessage(DataRow dr)
         {
             var message = new MimeMessage();
-            message.From.Add(new MailboxAddress(Config.UserAlias, Config.EmailUser));
+            message.From.Add(new MailboxAddress(Config.EmailUserAlias, Config.EmailUser));
             message.To.Add(new MailboxAddress(dr[0].ToString(), dr[1].ToString()));
             if (templateDict.Keys.Contains<string>("bcc"))
             {
@@ -316,12 +316,21 @@ namespace EmailSender
             var builder = new BodyBuilder();
             builder.TextBody = templateDict["body"];
             builder.HtmlBody = templateDict["body"];
-            if (!String.IsNullOrEmpty(dr[2].ToString()))
+            if (!String.IsNullOrEmpty(dr["Attachment"].ToString()))
             {
-                string[] attachments = dr[2].ToString().Split('|');
+                string[] attachments = dr["Attachment"].ToString().Split('|');
                 foreach (string part in attachments)
                 {
-                    builder.Attachments.Add(Config.AttachmentPath + part);
+                    if (File.Exists(Config.AttachmentPath + part))
+                    {
+                        builder.Attachments.Add(Config.AttachmentPath + part);
+                        builder.Attachments.Last().ContentId = part;
+                        builder.Attachments.Last().ContentType.Name = part;
+                    }
+                    else
+                    {
+                        WriteTextBox(String.Format("Can't find attachment file ({1}) in attachment folder ({0}) for {2}.", Config.AttachmentPath, part, dr["Email"].ToString()));
+                    }
                 }
             }
             message.Body = builder.ToMessageBody();
@@ -331,7 +340,12 @@ namespace EmailSender
 
         private string ReplacePart(string toBeReplaced, DataRow dr)
         {
-            return toBeReplaced.Replace("[BrandName]", dr[0].ToString()).Replace("[ID1]", dr[3].ToString()).Replace("[ID2]", dr[4].ToString()).Replace("[ID3]", dr[5].ToString());
+            string retString = toBeReplaced.Replace("[BrandName]", dr[0].ToString());
+            for (int i = 3; i < dr.ItemArray.Count(); i++)
+            {
+                retString = retString.Replace(String.Format("[{0}]", excelDT.Columns[i].ColumnName), dr[i].ToString());
+            }
+            return retString;
         }
 
         // check log of past 1 week to see if duplicated. Time can be altered in app.settings
